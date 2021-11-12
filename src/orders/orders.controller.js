@@ -6,12 +6,12 @@ const orders = require(path.resolve("src/data/orders-data"));
 // Use this function to assigh ID's when necessary
 const nextId = require("../utils/nextId");
 
-// TODO: Implement the /orders handlers needed to make the tests pass
-
+//Respond with a list of all existing order data.
 function list(req, res) {
   res.json({ data: orders });
 }
 
+//Validate if the request body has the required properties, create unique error message for each failed validation
 function bodyHasRequiredProperty(req, res, next) {
   const { data: { deliverTo, mobileNumber, dishes } = {} } = req.body;
   if (!deliverTo) {
@@ -46,7 +46,8 @@ function bodyHasRequiredProperty(req, res, next) {
   });
   return next();
 }
-  
+
+//Create a new order with the valid request, and respond with the newly created order
 function create(req, res) {
   const { data } = req.body;
   const newOrder = {
@@ -56,7 +57,8 @@ function create(req, res) {
   orders.push(newOrder);
   res.status(201).json({ data: newOrder });
 }
- 
+
+//Check if a order exists in the data with the request parameter dishId
 function orderExists(req, res, next) {
   const { orderId } = req.params;
   const matchedOrder = orders.find((order) => order.id === orderId);
@@ -74,42 +76,46 @@ function read(req, res) {
   res.json({ data: res.locals.order });
 }
 
+//Check if the id property inside the request body matches with the dishId in the parameter, and there is a valid input for status
 function validateUpdateOrderExists(req, res, next) {
-  const { data } = req.body;
-  const { status, id } = data;
+  const { data: { id, status } = {} } = req.body;
   const { orderId } = req.params;
-  const matchedOrder = orders.find((order) => order.id === orderId);
-  if (!matchedOrder) {
-    next({
-      status: 404,
-      message: `Order id not found: ${orderId}`
-    });
-  } else if (id !== orderId) {
+  // check if id of body does not match :orderId from the route
+  if (id && id !== orderId) {
     next({
       status: 400,
-      message: `Order id does not match route id. Order: ${id}, Route: ${orderId}.`,
-    });
-  } else if (status === "delivered") {
+      message: `Order id does not match route id. Order: ${id}, Route: ${orderId}`
+    })
+  } 
+  // check if status property is missing or empty, and if status input is valid
+  else if (!status || status === "" || (status !== "pending" && status !== "preparing" && status !== "out-for-delivery")) {
     next({
       status: 400,
-      message: "A delivered order cannot be changed",
-    });
-  } else if (!status || status !== "pending" || status !== "preparing" || status !== "out-for-delivery") {
+      message: "Order must have a status of pending, preparing, out-for-delivery, delivered"
+    })
+  } 
+  // check if status property of the existing order === "delivered
+  else if (status === "delivered"){
     next({
       status: 400,
-      message: "Order must have a status of pending, preparing, out-for-delivery, delivered",
-    });
+      message: "A delivered order cannot be changed"
+    })
   }
-  return next()
+  next();
 }
 
+//Update the order where id === :dishId
 function update(req, res, next) {
-  const originalOrder = res.locals.order;
+  let originalOrder = res.locals.order;
   const order = req.body.data;
-  originalOrder = order
-  res.json({ data: orginalOrder })
+  originalOrder = {
+    ...order,
+    id: res.locals.order.id,
+  }
+  res.json({ data: originalOrder })
 }
 
+//Check if the status of order is pending, if not pending return the error message
 function validatePendingStatus(req, res, next) {
   const { orderId } = req.params;
   const matchedOrder = orders.find((order) => order.id === orderId);
@@ -120,6 +126,7 @@ function validatePendingStatus(req, res, next) {
     })
 }
 
+//Delete the matched order for the parameter orderId and respond with the status code 204
 function destory(req, res, next) {
   const { orderId } = req.params;
   const indexToDeleteFrom = orders.findIndex((order) => order.id === orderId);  

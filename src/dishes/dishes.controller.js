@@ -6,12 +6,13 @@ const dishes = require(path.resolve("src/data/dishes-data"));
 // Use this function to assign ID's when necessary
 const nextId = require("../utils/nextId");
 
-// TODO: Implement the /dishes handlers needed to make the tests pass
 
+//Respond with a list of all existing dish data.
 function list(req, res) {
   res.json({ data: dishes });
 }
 
+//Validate if the request body has the required properties, create unique error message for each failed validation
 function bodyHasRequiredProperty(req, res, next) {
   const { data: { name, description, price, image_url } = {} } = req.body;
   if (!name) {
@@ -43,6 +44,7 @@ function bodyHasRequiredProperty(req, res, next) {
   return next();
 }
 
+//Create a new dish with the valid request and respond with the newly created dish
 function create(req, res) {
   const { data } = req.body;
   const newDish = {
@@ -53,6 +55,7 @@ function create(req, res) {
   res.status(201).json({ data: newDish });
 }
 
+//Check if a dish exists in the data with the request parameter dishId
 function dishExists(req, res, next) {
   const { dishId } = req.params;
   const matchedDish = dishes.find((dish) => dish.id === dishId);
@@ -66,30 +69,32 @@ function dishExists(req, res, next) {
   })
 }
 
+//Check if the id property inside the request body matches with the dishId in the parameter
 function validateUpdateDishExists(req, res, next) {
   const { dishId } = req.params;
-  const { id } = req.body.data;
-  if (!dishId) {
-    next({
-      status: 404,
-      message: `Dish does not exist: ${dishId}.`
-    })
-  } else if (id !== dishId) {
-    next({
-      status: 400,
-      message: `Dish id does not match route id. Dish: ${id}, Route: ${dishId}`
-    })
+  const { data: { id } = {} } = req.body;
+  if (!id || id === dishId) {
+    res.locals.dishId = dishId;
+    return next();
   }
-  return next()
+  next({
+    status: 400,
+    message: `Dish id does not match route id. Dish: ${id}, Route: ${dishId}`,
+  })
 }
 
+//Update the dish where id === :dishId
 function update(req, res) {
   let originalDish = res.locals.dish;
   const { data } = req.body;
-  originalDish = data;
+  originalDish = {
+    ...data,
+    id: res.locals.dishId
+  }
   res.json({ data: originalDish })
 }
 
+//Respond with the dish that has the matching id with the parameter dishId
 function read(req, res) {
   res.json({ data: res.locals.dish });
 }
